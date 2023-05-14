@@ -1,0 +1,170 @@
+---
+title: "FitnessWatchData"
+author: "Juan Salas"
+date: "7/13/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction 
+This case study aims to find trends in the fitness tracker industry to help Bellabeat improve their health-focused products for women. Bellabeat is a high-tech manufacture invested in developing health focused product made specifically with women in mind. It is Bellabeat mission to empower women through the means of personal health. Therefore, it is important for Bellabeat to continue developing its products. 
+
+To find trends in the fitness tracker industry and improve Bellabeats' products, we will use the six step analysis process: ask, prepare, process, analyze, share, and act.
+
+# ASK
+We will analyze smart fitness tracker devices usage data in order to gain insight into how non-Bellabeat consumers use smart devices to track their health and overall fitness. To make Bellabeat a more successful company and enrich the lives of its user we will address the following business tasks:
+
+1. What are some trends in smart device usage?
+
+2. How could these trends apply to Bellabeat customers?
+
+3. How could these trends help influence Bellabeat marketing strategy?
+
+# PREPARE
+The data we will be using for analysis is the Fitbit Fitness tracker data set. Fitbit is a smart watch that is specifically made for fitness tracking. This data set contains personal fitness such as daily activity, total steps, calories, and sleep habits from thirty Fitbit users. The data stored was for a full month, 4/12/2016 to 5/12/2016. Some limitations for this data set is that we only have data from 30 users and we don't know their gender. Additionally, all the daily activity for each user is not available.
+
+
+Data ROCCC Analysis:
+
+* Reliable: Yes
+
+* Original: Yes
+
+* Comprehensive: Yes
+
+* Current: No (historical data)
+
+* Cited: Yes
+
+# PROCESS
+
+Before we get into analyzing the data, we will load the required R packages and clean our data. To perform the necessary analysis we will use the R package tidyverse. tidyverse will allow us to import, clean, analyze and visualize our data sets. We will clean our data to ensure that we arrive at the correct conclusions and to prevent inaccuracies and over fitting. 
+
+```{r, message=FALSE}
+#Load all neccessary packages
+library(tidyverse)
+```
+
+
+```{r, message=FALSE}
+#Import all datasets
+weightLog <- read_csv("weightLoginfo_merged.csv")
+sleepLog <- read_csv("sleepDay_merged.csv")
+dailyAct <- read_csv("dailyActivity_merged.csv")
+```
+
+
+### Data Cleaning 
+For the data cleaning process we removed all the duplicate and empty entries. We also checked that all our data was correctly entered. We checked for accuracy, correctness, and reliability. Additionally, we created new columns. A column that calculated in which BMI level a user lied in (underweight,normal,overweight, obese). Also added a column that added the time in minutes that each user took to fall asleep.
+
+```{r}
+#data cleaning and manipulation
+weightLog <- weightLog %>% mutate(BMIlevel = case_when(BMI < 18.5 ~ "underweight", BMI >= 18.5 & BMI < 25 ~ "normal", BMI >= 25 & BMI < 30 ~ "overweight", BMI >= 30 ~ "obese"))
+```
+
+# ANALYZE
+
+Before we start analyzing our data we need to properly organize the data. As part of the organizing process we will join data sets so we can perform the correct analysis. We joined the sleep and daily activity data sets by user ID and date. Similarly, we joined the weight log and daily activity data set by user ID. By creating these two merged tables, it will help us perform the necessary calculations for each user.
+
+
+As part of the analyze step, we want to check the average amount of calories burned per BMI level. We want to explore this because we want to see if there is a relationship between the BMI level and averaged calories burned per day. This will help us identify how different BMI levels burn calories.
+
+```{r, echo=FALSE}
+cal <- dailyAct %>% group_by(Id) %>% summarise(avgcal = mean(Calories))
+levelcal <- cal %>% inner_join(weightLog, by = "Id") %>% distinct(Id, .keep_all = TRUE) %>% group_by(BMIlevel) %>% summarise(cals = mean(avgcal)) 
+ggplot(levelcal, aes(x = BMIlevel, y = cals, fill = BMIlevel)) +
+  geom_bar(stat = "identity") + 
+  theme_classic() + 
+  labs(x = "BMI Level", y = "Average Calories", title = "Average Calories Burned Per Day by BMI Level")
+```
+
+**Summary**
+From the bar plot above we can see that overweight users burn the most amount of calories while the normal users burn the least on average per day. The average calories burnt per day can be attributed to a lot of variables, but the fact the obese users are burning fewer calories is a noticeable factor. 
+
+
+Now we want to explore if there is a relationship between the Activity status and the amount of total sleep users get per night. To get a better analysis of how total amount of active minute has on the total minutes asleep, we will analyze each activity level: very, fairly, slightly, and sedentary active. 
+
+```{r, echo=FALSE, message=FALSE}
+sleepLog <- sleepLog %>% separate(SleepDay,into = c("ActivityDate", "time"), sep = ' ')
+StepsVsSleep <- dailyAct %>% inner_join(sleepLog, by = c("Id","ActivityDate"))
+ggplot(StepsVsSleep, aes(x = VeryActiveMinutes, y = TotalMinutesAsleep)) +
+  geom_jitter() +
+  geom_smooth(se = FALSE, color = "blue") + 
+  theme_classic() +
+  labs(title = "Very Active Minutes Vs Total Minutes Asleep")
+cor.test(StepsVsSleep$VeryActiveMinutes,StepsVsSleep$TotalMinutesAsleep)
+ggplot(StepsVsSleep, aes(x = FairlyActiveMinutes, y = TotalMinutesAsleep)) +
+  geom_jitter() +
+  geom_smooth(se = FALSE, color = "blue") + 
+  theme_classic() +
+  labs(title = "Fairly Active Minutes Vs Total Minutes Asleep")
+cor.test(StepsVsSleep$FairlyActiveMinutes,StepsVsSleep$TotalMinutesAsleep)
+ggplot(StepsVsSleep, aes(x = LightlyActiveMinutes, y = TotalMinutesAsleep)) +
+  geom_jitter() +
+  geom_smooth(se = FALSE, color = "blue") + 
+  theme_classic() +
+  labs(title = "Lightly Active Minutes Vs Total Minutes Asleep")
+cor.test(StepsVsSleep$LightlyActiveMinutes,StepsVsSleep$TotalMinutesAsleep)
+ggplot(StepsVsSleep, aes(x = SedentaryMinutes, y = TotalMinutesAsleep)) +
+  geom_jitter() +
+  geom_smooth(se = FALSE, color = "blue") + 
+  theme_classic() +
+  labs(title = "Sedentary Minutes Vs Total Minutes Asleep")
+  
+cor.test(StepsVsSleep$SedentaryMinutes,StepsVsSleep$TotalMinutesAsleep)
+ggplot(StepsVsSleep, aes(x = VeryActiveMinutes, y = FallAsleepTime)) +
+  geom_jitter() +
+  geom_smooth(se = FALSE, color = "blue") + 
+  theme_classic() + 
+  labs(title = "Very Active Minutes Vs Fall Asleep Time")
+cor.test(StepsVsSleep$VeryActiveMinutes,StepsVsSleep$FallAsleepTime)
+```
+
+**Summary**
+From the scatter plots above we can observe that very, fairly, and sedentary active all have a negative correlation with total amount of minuets asleep. In other words, the more users are very, fairly and sedentary active the less sleep the get. Additionally, in the active minutes Vs fall asleep time graph, we can see that there is a negative correlation. Therefore, we can assume that as users increase their total amount of minutes being very active the sooner they will be able to fall asleep. 
+
+
+One of the final things we want to explore is if there is a relationship between calories burned and total steps taken per day depending on BMI level.
+
+```{r, echo=FALSE, message=FALSE}
+#Check if there is a relationship between BMI level and total steps
+bmisteps <- dailyAct %>% inner_join(weightLog, by = "Id")
+ggplot(bmisteps, aes(x = TotalSteps, y = Calories, color = BMIlevel)) +
+  geom_jitter() + 
+  theme_classic() + 
+  geom_smooth(se = FALSE)
+```
+
+**Summary**
+Here we can see that there is an overall positive correlation between total steps and calories burned. In other words, the more a user walks the more calories they will burn per day. However, we can see that there is a difference in calories burned by BMI level. Users considered overweight tend to burn more calories.
+
+# Share/Act
+
+In the share steps we will refer back to the business task and answer the questions based on the findings and observations we have made in the analyze step.
+
+**1. What are some trends in smart device usage?**
+
+  + Users classified as Obese tend to burn less calories on average per day.
+  
+  + Users that have a larger amount of very active minutes tend to fall asleep faster. Alternatively, users with higher sedentary time have fewer minutes asleep per night.
+  
+  + Total amount of steps and calories burned have a positive relationship but users classified as obese register less steps.
+
+**2. How could these trends apply to Bellabeat customers?**
+
+  + These trends can benefit Bellabeat customers so that they could monitor and target their health and fitness goals.
+  
+**3. how could these trends help influence Bellabeat marketing strategy?**
+
+  + These trends can help lead the next marketing strategy by targeting consumers that want to make changes in their personal health and fitness.
+  
+**4. Recommendations**
+
+  + Suggest the number of steps they need to reach in a day depending on their health goals.
+  
+  + recommend a sleep schedule based on the steps taken, calories burned, and level of activity.
+  
+  + Send users notifications through out the day of their activity levels in order to motivate them to reach their goals.
